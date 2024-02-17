@@ -9,15 +9,16 @@ Tasks:
 - redis cash 8
 
 Doskhan:
-- [] get films 13
-- [] ETL genres 5
+- [ ] get films 13
+- [ ] models 5
 
 Vadim:
-- [] compose 5
-- [] models 5
-- [] redis cash 8
+
+- [ ] ETL genres 5
+- [ ] ETL persons 5
+- [ ] redis cash 8
 
 Kirill:
-- [] structure 3
-- [] get persons & genres 13
-- [] ETL persons 5
+- [ ] structure 3
+- [ ] get persons & genres 13
+- [ ] compose 5
