@@ -29,3 +29,9 @@ class Filmwork(BaseModel):
 class Person(BaseModel):
     id: str
     full_name: str
+
+
+class Genre(BaseModel):
+    id: str
+    name: str
+    description: str | None

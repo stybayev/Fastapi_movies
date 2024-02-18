@@ -106,8 +106,8 @@ class PostgresExtractor:
             SELECT DISTINCT
             g.id,
             g.name,
-            g.description
-            gfw.film_work_id
+            g.description,
+            g.modified
             FROM content.genre g
             JOIN content.genre_film_work gfw ON g.id = gfw.genre_id
             {}
