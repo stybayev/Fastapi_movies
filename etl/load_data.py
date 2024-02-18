@@ -125,6 +125,14 @@ def load_from_postgres_to_elasticsearch(
             transform_func=data_transform.person_from_pg_to_elastic,
         ),
     )
+    loader(
+        model_info=ModelInfo(
+            index_name="genres",
+            state_name="last_genre",
+            pg_func=postgres_extractor.get_genres,
+            transform_func=data_transform.genre_from_pg_to_elastic,
+        ),
+    )
     related_loader(
         model_info=ModelInfo(
             index_name="movies",
@@ -180,7 +188,7 @@ def check_index_exists(index_name: str):
     elastic_params = ElasticParams()
 
     response = requests.get(
-        url=f"http://{elastic_params.url()}/{elastic_params.index_name}",
+        url=f"http://{elastic_params.url()}/{index_name}",
     )
     if response.status_code == 404:
         os.system(
@@ -195,6 +203,7 @@ def main():
         try:
             check_index_exists(index_name="movies")
             check_index_exists(index_name="persons")
+            check_index_exists(index_name="genres")
             start()
         except ESIndexNotFoundException:
             logging.error("ES: No index")
