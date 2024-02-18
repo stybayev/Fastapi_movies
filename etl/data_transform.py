@@ -38,4 +38,7 @@ class DataTransform:
 
     @staticmethod
     def genre_from_pg_to_elastic(rows: list) -> list[dto.Genre]:
-        return [dto.Genre(id=row["id"], name=row["name"], description=row["description"]) for row in rows]
+        return [
+            dto.Genre(id=row["id"], name=row["name"], description=row["description"])
+            for row in rows
+        ]
