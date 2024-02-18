@@ -27,19 +27,20 @@ class ElasticsearchLoader:
 
     def send_request(
         self,
+        index_name: str,
         bulk_request_data: str,
     ) -> requests.Response:
         """Метод для отправки данных в Elasticsearch по REST API."""
         response = self.session.post(
-            url=f"{self.url}/{self.config.index_name}/_bulk",
+            url=f"{self.url}/{index_name}/_bulk",
             data=bulk_request_data,
             headers={"Content-Type": "application/json"},
         )
         return response
 
-    def save_batch(self, batch: list[dto.Filmwork]) -> None:
+    def save_batch(self, index_name: str, batch: list[dto.Filmwork]) -> None:
         """Основной метод сохранения данных в Elasticsearch."""
         bulk_request_data = self.prepare_bulk_request_data(batch=batch)
-        self.send_request(bulk_request_data=bulk_request_data)
+        self.send_request(bulk_request_data=bulk_request_data, index_name=index_name)
 
         self.log.info(f"{len(batch)} rows saved successfully!")

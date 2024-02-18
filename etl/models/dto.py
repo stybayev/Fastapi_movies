@@ -24,3 +24,8 @@ class Filmwork(BaseModel):
     writers_names: list[str] = field(default_factory=list)
     actors: list[Actor] = field(default_factory=list)
     writers: list[Writer] = field(default_factory=list)
+
+class Person(BaseModel):
+    id: str
+    full_name: str
+

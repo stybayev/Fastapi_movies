@@ -5,7 +5,7 @@ class DataTransform:
     """В этом классе данные преобразуются из формата Postgres в формат, пригодный для Elasticsearch."""
 
     @staticmethod
-    def from_pg_to_elastic(rows: list) -> list[dto.Filmwork]:
+    def filmwork_from_pg_to_elastic(rows: list) -> list[dto.Filmwork]:
         result: list[dto.Filmwork] = []
         for row in rows:
             actors = filter(lambda x: x["person_role"] == "actor", row["persons"])
@@ -31,3 +31,8 @@ class DataTransform:
             result.append(filmwork)
 
         return result
+
+    @staticmethod
+    def person_from_pg_to_elastic(rows: list) -> list[dto.Person]:
+        return [dto.Person(id=row["id"], full_name=row["full_name"]) for row in rows]
+

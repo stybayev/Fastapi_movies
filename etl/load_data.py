@@ -2,6 +2,9 @@ import datetime
 import logging
 import os
 import time
+import dataclasses
+import typing
+import functools
 
 import psycopg2
 import redis
@@ -18,26 +21,32 @@ from psycopg2.extensions import connection as _connection
 # Максимальный размер выгружаемой пачки
 FETCH_LIMIT = 100
 
+@dataclasses.dataclass
+class ModelInfo:
+    state_name: str
+    index_name: str
+    pg_func: typing.Callable
+    transform_func: typing.Callable
 
-def load_filmworks(
+
+def load(
     state: State,
-    postgres_extractor: PostgresExtractor,
-    data_transform: DataTransform,
     elasticsearch_loader: ElasticsearchLoader,
+    model_info: ModelInfo,
 ):
     """Процесс загрузки данных для фильмов."""
-    last_filmwork = state.get_state("last_filmwork")
-    last_filmwork_modified = last_filmwork["modified"] if last_filmwork else None
+    last = state.get_state(model_info.state_name)
+    last_modified = last["modified"] if last else None
 
-    for batch in postgres_extractor.get_filmworks(
-        last_modified=last_filmwork_modified,
+    for batch in model_info.pg_func(
+        last_modified=last_modified,
         fetch_limit=FETCH_LIMIT,
     ):
-        prepared_batch = data_transform.from_pg_to_elastic(rows=batch)
-        elasticsearch_loader.save_batch(batch=prepared_batch)
+        prepared_batch = model_info.transform_func(rows=batch)
+        elasticsearch_loader.save_batch(batch=prepared_batch, index_name=model_info.index_name)
 
     state.set_state(
-        key="last_filmwork",
+        key=model_info.state_name,
         value={"modified": datetime.datetime.utcnow().isoformat()},
     )
 
@@ -45,20 +54,15 @@ def load_filmworks(
 def load_related_data(
     state: State,
     postgres_extractor: PostgresExtractor,
-    data_transform: DataTransform,
     elasticsearch_loader: ElasticsearchLoader,
-    state_name: str,
+    model_info: ModelInfo,
 ):
     """Процесс загрузки данных для связанных данных."""
-    get_changed = {
-        "last_person": postgres_extractor.get_changed_filmworks_by_persons,
-        "last_genre": postgres_extractor.get_changed_filmworks_by_genres,
-    }
 
-    last_state = state.get_state(state_name)
+    last_state = state.get_state(model_info.state_name)
     last_state_modified = last_state["modified"] if last_state else None
 
-    for filmwork_ids in get_changed[state_name](
+    for filmwork_ids in model_info.pg_func(
         last_modified=last_state_modified,
         fetch_limit=FETCH_LIMIT,
     ):
@@ -67,11 +71,11 @@ def load_related_data(
             ids=filmwork_ids_list,
             fetch_limit=FETCH_LIMIT,
         ):
-            prepared_batch = data_transform.from_pg_to_elastic(rows=batch)
-            elasticsearch_loader.save_batch(batch=prepared_batch)
+            prepared_batch = model_info.transform_func(rows=batch)
+            elasticsearch_loader.save_batch(batch=prepared_batch, index_name=model_info.index_name)
 
     state.set_state(
-        key=state_name,
+        key=model_info.state_name,
         value={"modified": datetime.datetime.utcnow().isoformat()},
     )
 
@@ -88,16 +92,50 @@ def load_from_postgres_to_elasticsearch(
     state = State(storage=redis_storage)
     data_transform = DataTransform()
 
-    params = {
-        "state": state,
-        "postgres_extractor": postgres_extractor,
-        "data_transform": data_transform,
-        "elasticsearch_loader": elasticsearch_loader,
-    }
+    loader = functools.partial(
+        load,
+        state=state,
+        elasticsearch_loader=elasticsearch_loader,
+    )
+    related_loader = functools.partial(
+        load_related_data,
+        state=state,
+        elasticsearch_loader=elasticsearch_loader,
+        postgres_extractor=postgres_extractor,
+    )
 
-    load_filmworks(**params)
-    load_related_data(**params, state_name="last_person")
-    load_related_data(**params, state_name="last_genre")
+    loader(
+        model_info=ModelInfo(
+            index_name="movies",
+            state_name="last_filmwork",
+            pg_func=postgres_extractor.get_filmworks,
+            transform_func=data_transform.filmwork_from_pg_to_elastic,
+        )
+    )
+    loader(
+        model_info=ModelInfo(
+            index_name="persons",
+            state_name="last_person",
+            pg_func=postgres_extractor.get_persons,
+            transform_func=data_transform.person_from_pg_to_elastic,
+        )
+    )
+    related_loader(
+        model_info=ModelInfo(
+            index_name="movies",
+            state_name="last_person_filmwork",
+            pg_func=postgres_extractor.get_changed_filmworks_by_persons,
+            transform_func=data_transform.filmwork_from_pg_to_elastic,
+        )
+    )
+    related_loader(
+        model_info=ModelInfo(
+            index_name="movies",
+            state_name="last_genre_filmwork",
+            pg_func=postgres_extractor.get_changed_filmworks_by_genres,
+            transform_func=data_transform.filmwork_from_pg_to_elastic,
+        )
+    )
 
 
 @backoff(
@@ -151,6 +189,7 @@ def main():
     while True:
         try:
             check_index_exists(index_name="movies")
+            check_index_exists(index_name="persons")
             start()
         except ESIndexNotFoundException:
             logging.error("ES: No index")

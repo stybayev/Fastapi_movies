@@ -50,7 +50,7 @@ class PostgresExtractor:
         return query
 
     @staticmethod
-    def get_persons_query(filter_query: str = "") -> str:
+    def get_persons_filmworks_query(filter_query: str = "") -> str:
         query = """
             SELECT
             p.id,
@@ -67,7 +67,24 @@ class PostgresExtractor:
         return query
 
     @staticmethod
-    def get_genres_query(filter_query: str = "") -> str:
+    def get_persons_query(filter_query: str = "") -> str:
+        query = """
+            SELECT DISTINCT
+            p.id,
+            p.full_name,
+            p.modified
+            FROM content.person p
+            JOIN content.person_film_work pfw ON p.id = pfw.person_id
+            {}
+            ORDER BY p.modified
+        """.format(
+            filter_query,
+        )
+
+        return query
+
+    @staticmethod
+    def get_genres_filmworks_query(filter_query: str = "") -> str:
         query = """
             SELECT
             g.id,
@@ -75,6 +92,24 @@ class PostgresExtractor:
             gfw.film_work_id
             FROM content.genre g
             LEFT JOIN content.genre_film_work gfw ON g.id = gfw.genre_id
+            {}
+            ORDER BY g.modified
+        """.format(
+            filter_query,
+        )
+
+        return query
+
+    @staticmethod
+    def get_genres_query(filter_query: str = "") -> str:
+        query = """
+            SELECT DISTINCT
+            g.id,
+            g.name,
+            g.description
+            gfw.film_work_id
+            FROM content.genre g
+            JOIN content.genre_film_work gfw ON g.id = gfw.genre_id
             {}
             ORDER BY g.modified
         """.format(
@@ -96,6 +131,33 @@ class PostgresExtractor:
         while rows := self.cursor.fetchmany(size=fetch_limit):
             yield rows
 
+    def get_persons(self, last_modified: datetime, fetch_limit: int = 50) -> list:
+        """Получить обновленные по modified персоны."""
+        if last_modified:
+            self.cursor.execute(
+                self.get_persons_query(filter_query="WHERE p.modified > %s"),
+                [last_modified],
+            )
+        else:
+            self.cursor.execute(self.get_persons_query())
+
+        while rows := self.cursor.fetchmany(size=fetch_limit):
+            yield rows
+
+    def get_genres(self, last_modified: datetime, fetch_limit: int = 50) -> list:
+        """Получить обновленные по modified жанры."""
+        if last_modified:
+            self.cursor.execute(
+                self.get_genres_query(filter_query="WHERE g.modified > %s"),
+                [last_modified],
+            )
+        else:
+            self.cursor.execute(self.get_genres_query())
+
+        while rows := self.cursor.fetchmany(size=fetch_limit):
+            yield rows
+
+
     def get_filmworks_by_ids(self, ids: list[str], fetch_limit: int = 50) -> list:
         """Получить обновленные фильмы по списку id со всеми связанными данными за один запрос."""
         self.related_cursor.execute(
@@ -114,11 +176,11 @@ class PostgresExtractor:
         """Получить обновленных людей."""
         if last_modified:
             self.cursor.execute(
-                self.get_persons_query(filter_query="WHERE p.modified > %s"),
+                self.get_persons_filmworks_query(filter_query="WHERE p.modified > %s"),
                 [last_modified],
             )
         else:
-            self.cursor.execute(self.get_persons_query())
+            self.cursor.execute(self.get_persons_filmworks_query())
 
         while rows := self.cursor.fetchmany(size=fetch_limit):
             yield rows
@@ -131,11 +193,11 @@ class PostgresExtractor:
         """Получить обновленные жанры."""
         if last_modified:
             self.cursor.execute(
-                self.get_genres_query(filter_query="WHERE g.modified > %s"),
+                self.get_genres_filmworks_query(filter_query="WHERE g.modified > %s"),
                 [last_modified],
             )
         else:
-            self.cursor.execute(self.get_genres_query())
+            self.cursor.execute(self.get_genres_filmworks_query())
 
         while rows := self.cursor.fetchmany(size=fetch_limit):
             yield rows
