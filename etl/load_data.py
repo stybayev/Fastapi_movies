@@ -1,10 +1,10 @@
+import dataclasses
 import datetime
+import functools
 import logging
 import os
 import time
-import dataclasses
 import typing
-import functools
 
 import psycopg2
 import redis
@@ -20,6 +20,7 @@ from psycopg2.extensions import connection as _connection
 
 # Максимальный размер выгружаемой пачки
 FETCH_LIMIT = 100
+
 
 @dataclasses.dataclass
 class ModelInfo:
@@ -43,7 +44,9 @@ def load(
         fetch_limit=FETCH_LIMIT,
     ):
         prepared_batch = model_info.transform_func(rows=batch)
-        elasticsearch_loader.save_batch(batch=prepared_batch, index_name=model_info.index_name)
+        elasticsearch_loader.save_batch(
+            batch=prepared_batch, index_name=model_info.index_name
+        )
 
     state.set_state(
         key=model_info.state_name,
@@ -72,7 +75,9 @@ def load_related_data(
             fetch_limit=FETCH_LIMIT,
         ):
             prepared_batch = model_info.transform_func(rows=batch)
-            elasticsearch_loader.save_batch(batch=prepared_batch, index_name=model_info.index_name)
+            elasticsearch_loader.save_batch(
+                batch=prepared_batch, index_name=model_info.index_name
+            )
 
     state.set_state(
         key=model_info.state_name,
@@ -110,7 +115,7 @@ def load_from_postgres_to_elasticsearch(
             state_name="last_filmwork",
             pg_func=postgres_extractor.get_filmworks,
             transform_func=data_transform.filmwork_from_pg_to_elastic,
-        )
+        ),
     )
     loader(
         model_info=ModelInfo(
@@ -118,7 +123,7 @@ def load_from_postgres_to_elasticsearch(
             state_name="last_person",
             pg_func=postgres_extractor.get_persons,
             transform_func=data_transform.person_from_pg_to_elastic,
-        )
+        ),
     )
     related_loader(
         model_info=ModelInfo(
@@ -126,7 +131,7 @@ def load_from_postgres_to_elasticsearch(
             state_name="last_person_filmwork",
             pg_func=postgres_extractor.get_changed_filmworks_by_persons,
             transform_func=data_transform.filmwork_from_pg_to_elastic,
-        )
+        ),
     )
     related_loader(
         model_info=ModelInfo(
@@ -134,7 +139,7 @@ def load_from_postgres_to_elasticsearch(
             state_name="last_genre_filmwork",
             pg_func=postgres_extractor.get_changed_filmworks_by_genres,
             transform_func=data_transform.filmwork_from_pg_to_elastic,
-        )
+        ),
     )
 
 

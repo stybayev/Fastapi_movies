@@ -35,4 +35,3 @@ class DataTransform:
     @staticmethod
     def person_from_pg_to_elastic(rows: list) -> list[dto.Person]:
         return [dto.Person(id=row["id"], full_name=row["full_name"]) for row in rows]
-

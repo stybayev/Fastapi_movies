@@ -157,7 +157,6 @@ class PostgresExtractor:
         while rows := self.cursor.fetchmany(size=fetch_limit):
             yield rows
 
-
     def get_filmworks_by_ids(self, ids: list[str], fetch_limit: int = 50) -> list:
         """Получить обновленные фильмы по списку id со всеми связанными данными за один запрос."""
         self.related_cursor.execute(

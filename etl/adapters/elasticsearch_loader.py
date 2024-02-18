@@ -3,6 +3,7 @@ import logging
 
 import requests
 from config import ElasticParams
+
 from models import dto
 
 
