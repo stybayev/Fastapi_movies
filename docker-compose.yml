@@ -7,7 +7,7 @@ volumes:
 
 services:
   etl:
-    build: etl
+    image: vadimiki/etl:latest
     restart: always
     env_file:
       - .env
