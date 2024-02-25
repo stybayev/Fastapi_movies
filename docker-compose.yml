@@ -18,18 +18,8 @@ services:
       - db
       - elasticsearch
       - redis
-    environment:
-      UVICORN_HOST: ${UVICORN_HOST}
-      UVICORN_PORT: ${UVICORN_PORT}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      ELASTIC_HOST: ${ELASTIC_HOST}
-      ELASTIC_PORT: ${ELASTIC_PORT}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
+    env_file:
+      - .env
 
   etl:
     image: vadimiki/etl:latest
