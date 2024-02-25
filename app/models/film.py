@@ -24,7 +24,7 @@ class Film(BaseFilmModel):
     title: str
     description: str
     imdb_rating: float
-    genres: List[str]
+    genre: List[str]
     actors: List[str]
     writers: List[str]
     directors: List[str]
@@ -32,4 +32,3 @@ class Film(BaseFilmModel):
     writers_names: List[str] = Field(default_factory=list)
     actors: List[Actor] = Field(default_factory=list)
     writers: List[Writer] = Field(default_factory=list)
-
