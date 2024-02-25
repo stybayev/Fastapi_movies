@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List
 import orjson
 
+from app.models.persons import Actor, Writer
 from app.models.utils import orjson_dumps
 
 
@@ -27,3 +28,8 @@ class Film(BaseFilmModel):
     actors: List[str]
     writers: List[str]
     directors: List[str]
+    actors_names: List[str] = Field(default_factory=list)
+    writers_names: List[str] = Field(default_factory=list)
+    actors: List[Actor] = Field(default_factory=list)
+    writers: List[Writer] = Field(default_factory=list)
+
