@@ -1,10 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
 from typing import List
-from utils import orjson_dumps
+from base_model import orjson_dumps, BaseMixin
 import orjson
 
 
-class Genre(BaseModel):
+class Genre(BaseMixin):
     """
     Модель жанра
     """

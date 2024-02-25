@@ -1,24 +1,10 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
-import orjson
-
-# Убедитесь, что у вас правильно определены модели Actor и Writer
+from pydantic import Field
+from typing import List
 from app.models.persons import Actor, Writer
-from app.models.utils import orjson_dumps
+from app.models.base_model import BaseMixin
 
 
-class BaseFilmModel(BaseModel):
-    """
-    Базовая модель фильма
-    """
-    id: str = Field(alias="_id")
-
-    class Config:
-        json_loads = orjson.loads
-        json_dumps = orjson_dumps
-
-
-class Film(BaseFilmModel):
+class Film(BaseMixin):
     """
     Модель фильма
     """

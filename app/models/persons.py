@@ -1,14 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
 from typing import List
-from utils import orjson_dumps
+from base_model import orjson_dumps, BaseMixin
 import orjson
 
 
-class BasePersonModel(BaseModel):
+class BasePersonModel(BaseMixin):
     """
     Базовая модель персоны
     """
-    id: str = Field(alias="_id")
     full_name: str
     films: List[str]
 
