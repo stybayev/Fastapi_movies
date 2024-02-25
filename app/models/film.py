@@ -26,7 +26,7 @@ class Film(BaseFilmModel):
     description: str
     imdb_rating: float
     genre: List[str]
-    director: List[str] = Field(default_factory=list)  # Добавлено поле director
+    director: List[str] = Field(default_factory=list)
     actors_names: List[str] = Field(default_factory=list)
     writers_names: List[str] = Field(default_factory=list)
     actors: List[Actor] = Field(default_factory=list)
