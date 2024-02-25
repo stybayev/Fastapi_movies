@@ -1,7 +1,8 @@
 from pydantic import Field
 from typing import List
-from base_model import orjson_dumps, BaseMixin
 import orjson
+
+from app.models.base_model import BaseMixin, orjson_dumps
 
 
 class BasePersonModel(BaseMixin):
