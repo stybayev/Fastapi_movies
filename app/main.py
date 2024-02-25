@@ -2,13 +2,15 @@ import logging
 
 import uvicorn
 from elasticsearch import AsyncElasticsearch
-from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
+from fastapi import FastAPI
+from pydantic import BaseModel, EmailStr
 
-from core import config
-from core.logger import LOGGING
-from db import elastic, redis
+from app.api.v1 import films
+from app.core import config
+from app.core.logger import LOGGING
+from app.db import elastic, redis
 
 app = FastAPI(
     title=config.PROJECT_NAME,
@@ -25,7 +27,7 @@ async def startup():
     # Поэтому логика подключения происходит в асинхронной функции
     redis.redis = Redis(host=config.REDIS_HOST, port=config.REDIS_PORT)
     elastic.es = AsyncElasticsearch(
-        hosts=[f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"]
+        hosts=[f'http://{config.ELASTIC_HOST}:{config.ELASTIC_PORT}']
     )
 
 
@@ -39,23 +41,3 @@ async def shutdown():
 # Подключаем роутер к серверу, указав префикс /v1/films
 # Теги указываем для удобства навигации по документации
 app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
-
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        log_config=LOGGING,
-        log_level=logging.DEBUG,
-    )
-
-if __name__ == "__main__":
-    # Приложение может запускаться командой
-    # `uvicorn main:app --host 0.0.0.0 --port 8000`
-    # но чтобы не терять возможность использовать дебагер,
-    # запустим uvicorn сервер через python
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-    )

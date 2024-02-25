@@ -6,6 +6,21 @@ volumes:
   redis_data:
 
 services:
+  app:
+    container_name: app
+    build: .
+    volumes:
+      - .:/app
+    restart: always
+    ports:
+      - ${UVICORN_PORT}:${UVICORN_PORT}
+    depends_on:
+      - db
+      - elasticsearch
+      - redis
+    env_file:
+      - .env
+
   etl:
     image: vadimiki/etl:latest
     restart: always
