@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import List
-from utils import orjson_dumps
 import orjson
+
+from app.models.utils import orjson_dumps
 
 
 class BaseFilmModel(BaseModel):

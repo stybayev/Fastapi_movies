@@ -19,38 +19,25 @@ app = FastAPI(
     default_response_class=ORJSONResponse,
 )
 
-#
-# @app.on_event("startup")
-# async def startup():
-#     # Подключаемся к базам при старте сервера
-#     # Подключиться можем при работающем event-loop
-#     # Поэтому логика подключения происходит в асинхронной функции
-#     redis.redis = Redis(host=config.REDIS_HOST, port=config.REDIS_PORT)
-#     elastic.es = AsyncElasticsearch(
-#         hosts=[f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"]
-#     )
-#
-#
-# @app.on_event("shutdown")
-# async def shutdown():
-#     # Отключаемся от баз при выключении сервера
-#     await redis.redis.close()
-#     await elastic.es.close()
-#
-#
-# # Подключаем роутер к серверу, указав префикс /v1/films
-# # Теги указываем для удобства навигации по документации
-# app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
+
+@app.on_event("startup")
+async def startup():
+    # Подключаемся к базам при старте сервера
+    # Подключиться можем при работающем event-loop
+    # Поэтому логика подключения происходит в асинхронной функции
+    redis.redis = Redis(host=config.REDIS_HOST, port=config.REDIS_PORT)
+    elastic.es = AsyncElasticsearch(
+        hosts=[f'http://{config.ELASTIC_HOST}:{config.ELASTIC_PORT}']
+    )
 
 
-class UserIn(BaseModel):
-    username: str
-    password: str
-    email: EmailStr
-    full_name: str | None = None
+@app.on_event("shutdown")
+async def shutdown():
+    # Отключаемся от баз при выключении сервера
+    await redis.redis.close()
+    await elastic.es.close()
 
 
-# Don't do this in production!
-@app.post("/user/")
-async def create_user(user: UserIn) -> UserIn:
-    return user
+# Подключаем роутер к серверу, указав префикс /v1/films
+# Теги указываем для удобства навигации по документации
+app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
