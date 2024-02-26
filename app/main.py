@@ -1,5 +1,9 @@
+import uvicorn
+import logging
+
 from elasticsearch import AsyncElasticsearch
 from fastapi.responses import ORJSONResponse
+from fastapi import FastAPI
 from redis.asyncio import Redis
 
 from app.api.v1 import films, genres
