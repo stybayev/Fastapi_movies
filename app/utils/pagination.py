@@ -1,6 +1,6 @@
 class Pagination:
     """
-    Класс для работы с пагинацией
+    Параметры пагинации
     """
     def __init__(self, page_size: int = 10, page_number: int = 1):
         self.page_size = page_size
