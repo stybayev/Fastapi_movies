@@ -162,7 +162,7 @@ class FilmService:
         # Фильтрация по жанру
         if genre:
             query_body["query"]["bool"]["must"].append({
-                "term": {"genres.uuid": genre}
+                "match": {"genre": genre}
             })
 
         # Сортировка
@@ -176,6 +176,7 @@ class FilmService:
 
         try:
             response = await self.elastic.search(index="movies", body=query_body)
+            print(response)
         except Exception as e:
             logging.error(f"Failed to fetch films from Elasticsearch: {e}")
             return []
