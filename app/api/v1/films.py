@@ -8,6 +8,15 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
+class BaseFilmModelResponse(BaseModel):
+    """
+    Базовая модель фильма для ответа API
+    """
+    uuid: str
+    title: str
+    imdb_rating: float
+
+
 class BasePersonModelResponse(BaseModel):
     """
     Базовая модель персоны для ответа API
@@ -45,15 +54,22 @@ class WriterResponse(BasePersonModelResponse):
     pass
 
 
-class FilmResponse(BaseModel):
-    uuid: str
-    title: str
+class FilmResponse(BaseFilmModelResponse):
+    """
+    Модель фильма ответа API
+    """
     description: Optional[str] = None
-    imdb_rating: float
     genre: List[GenreResponse]
     directors: List[DirectorResponse]
     actors: List[ActorResponse]
     writers: List[WriterResponse]
+
+
+class FilmListResponse(BaseFilmModelResponse):
+    """
+    Модель для списка фильмов ответа API
+    """
+    pass
 
 
 # Внедряем FilmService с помощью Depends(get_film_service)
@@ -92,3 +108,27 @@ async def film_details(
         actors=actors_response,
         writers=writers_response
     )
+
+
+@router.get('/', response_model=List[FilmListResponse])
+async def list_films(
+        sort: Optional[str] = '-imdb_rating',
+        genre: Optional[str] = None,
+        page_size: int = 50,
+        page_number: int = 1,
+        film_service: FilmService = Depends(get_film_service)) -> List[FilmListResponse]:
+    """
+    Получить список фильмов
+    :param sort:
+    :param genre:
+    :param page_size:
+    :param page_number:
+    :param film_service:
+    :return:
+    """
+    films = await film_service.get_films(
+        sort=sort, genre=genre, page_size=page_size, page_number=page_number)
+    return [FilmListResponse(
+        uuid=film.id,
+        title=film.title,
+        imdb_rating=film.imdb_rating) for film in films]

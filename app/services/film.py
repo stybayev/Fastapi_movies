@@ -1,6 +1,6 @@
 import logging
 from functools import lru_cache
-from typing import Optional
+from typing import Optional, List
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from pydantic import ValidationError
@@ -8,7 +8,7 @@ from redis.asyncio import Redis
 
 from app.db.elastic import get_elastic
 from app.db.redis import get_redis
-from app.models.film import Film
+from app.models.film import Film, Films
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
@@ -139,6 +139,62 @@ class FilmService:
 
         except NotFoundError:
             logging.error(f"Director {director_full_name} not found")
+
+    async def get_films(self, genre: Optional[str] = None,
+                        sort: Optional[str] = None,
+                        page_size: int = 10,
+                        page_number: int = 1) -> List[Films]:
+        """
+        Получить список фильмов с учетом жанра, сортировки, размера страницы и номера страницы.
+        Возвращает список объектов Film.
+        """
+        query_body = {
+            "query": {
+                "bool": {
+                    "must": []
+                }
+            },
+            "sort": [],
+            "from": (page_number - 1) * page_size,
+            "size": page_size
+        }
+
+        # Фильтрация по жанру
+        if genre:
+            query_body["query"]["bool"]["must"].append({
+                "term": {"genres.uuid": genre}
+            })
+
+        # Сортировка
+        if sort:
+            order = "desc" if sort.startswith("-") else "asc"
+            field_name = "imdb_rating" if sort[1:] == "imdb_rating" or sort == "imdb_rating" else sort[
+                                                                                                  1:] if order == "desc" else sort
+            query_body["sort"].append({
+                field_name: {"order": order}
+            })
+
+        try:
+            response = await self.elastic.search(index="movies", body=query_body)
+        except Exception as e:
+            logging.error(f"Failed to fetch films from Elasticsearch: {e}")
+            return []
+
+        films = []
+        for hit in response['hits']['hits']:
+            film_data = {
+                "id": hit["_id"],
+                "title": hit["_source"]["title"],
+                "imdb_rating": hit["_source"].get("imdb_rating")
+            }
+            try:
+                film = Films(**film_data)
+                films.append(film)
+            except ValidationError as e:
+                logging.error(f"Error validating film data: {e}")
+                continue
+
+        return films
 
 
 @lru_cache()
