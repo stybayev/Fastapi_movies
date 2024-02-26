@@ -1,17 +1,17 @@
-from pydantic import Field
-from typing import List
 import orjson
 
-from app.models.base_model import BaseMixin, orjson_dumps
+from pydantic import BaseModel
+from typing import Callable, Optional, Any
 
 
-class Genre(BaseMixin):
-    """
-    Модель жанра
-    """
-    id: str = Field(alias="_id")
+def orjson_dumps(v: Any, *, default: Callable[[Any], Any]) -> str:
+    return orjson.dumps(v, default=default).decode()
+
+
+class Genre(BaseModel):
+    id: str
     name: str
-    films: List[str]
+    description: Optional[str] = None
 
     class Config:
         json_loads = orjson.loads
