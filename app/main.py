@@ -1,15 +1,9 @@
-import logging
-
-import uvicorn
 from elasticsearch import AsyncElasticsearch
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 from fastapi import FastAPI
-from pydantic import BaseModel, EmailStr
-
 from app.api.v1 import films
 from app.core import config
-from app.core.logger import LOGGING
 from app.db import elastic, redis
 
 app = FastAPI(

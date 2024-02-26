@@ -1,13 +1,14 @@
+import logging
 from functools import lru_cache
-from typing import Optional
-
+from typing import Optional, List
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
+from pydantic import ValidationError
 from redis.asyncio import Redis
 
 from app.db.elastic import get_elastic
 from app.db.redis import get_redis
-from app.models.film import Film
+from app.models.film import Film, Films
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
@@ -27,7 +28,7 @@ class FilmService:
             if not film:
                 # Если он отсутствует в Elasticsearch, значит, фильма вообще нет в базе
                 return None
-            # Сохраняем фильм  в кеш
+            # Сохраняем фильм в кеш
             await self._put_film_to_cache(film)
 
         return film
@@ -37,7 +38,33 @@ class FilmService:
             doc = await self.elastic.get(index="movies", id=film_id)
         except NotFoundError:
             return None
-        return Film(**doc["_source"])
+
+        doc_source = doc["_source"]
+
+        # Получаем данные о режиссерах, используя выделенную функцию
+        # doc_source['director'] = [doc_source.get('director', '')] if doc_source.get('director', '') else []
+        director_names = doc_source.get('director', [])
+        director = []
+        if director_names:
+            directors_data = await self._get_directors_data(director_names)
+            director.append(directors_data)
+            doc_source['director'] = director
+        else:
+            doc_source['director'] = []
+
+        # Получаем данные о жанрах, используя выделенную функцию
+        genre_names = doc_source.get('genre', [])
+        if genre_names:
+            genres_data = await self._get_genres_data(genre_names)
+            doc_source['genre'] = genres_data
+        else:
+            doc_source['genre'] = []
+
+        try:
+            return Film(**doc_source)
+        except ValidationError as e:
+            logging.error(e)
+            return None
 
     async def _film_from_cache(self, film_id: str) -> Optional[Film]:
         # Пытаемся получить данные о фильме из кеша, используя команду get
@@ -57,10 +84,123 @@ class FilmService:
         # pydantic позволяет сериализовать модель в json
         await self.redis.set(film.id, film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
 
+    async def _get_genres_data(self, genre_names: list[str]) -> list[dict]:
+        """
+        Получить данные о жанрах
+        :param genre_names:
+        :return:
+        """
+        genres_data = []
+        for genre_name in genre_names:
+            try:
+                response = await self.elastic.search(
+                    index="genres",
+                    body={
+                        "query": {
+                            "match": {
+                                "name.raw": genre_name
+                            }
+                        }
+                    }
+                )
+                for hit in response['hits']['hits']:
+                    genre_source = hit["_source"]
+                    genres_data.append({"name": genre_source["name"], "uuid": hit["_id"]})
+            except NotFoundError:
+                logging.error(f"Genre {genre_name} not found")
+        return genres_data
+
+    async def _get_directors_data(self, director_full_name: str) -> dict:
+        """
+        Получить данные о режиссерах
+        :param director_full_names:
+        :return:
+        """
+
+        try:
+            # Поиск режиссера по полному имени
+            response = await self.elastic.search(
+                index="persons",
+                body={
+                    "query": {
+                        "match": {
+                            "full_name.raw": director_full_name
+                        }
+                    }
+                }
+            )
+            # Добавляем данные о режиссере в список
+            for hit in response['hits']['hits']:
+                director_data = {
+                    "uuid": hit["_id"],
+                    "full_name": hit["_source"]["full_name"]
+                }
+                return director_data
+
+        except NotFoundError:
+            logging.error(f"Director {director_full_name} not found")
+
+    async def get_films(self, genre: Optional[str] = None,
+                        sort: Optional[str] = None,
+                        page_size: int = 10,
+                        page_number: int = 1) -> List[Films]:
+        """
+        Получить список фильмов с учетом жанра, сортировки, размера страницы и номера страницы.
+        Возвращает список объектов Film.
+        """
+        query_body = {
+            "query": {
+                "bool": {
+                    "must": []
+                }
+            },
+            "sort": [],
+            "from": (page_number - 1) * page_size,
+            "size": page_size
+        }
+
+        # Фильтрация по жанру
+        if genre:
+            query_body["query"]["bool"]["must"].append({
+                "match": {"genre": genre}
+            })
+
+        # Сортировка
+        if sort:
+            order = "desc" if sort.startswith("-") else "asc"
+            field_name = "imdb_rating" if sort[1:] == "imdb_rating" or sort == "imdb_rating" else sort[
+                                                                                                  1:] if order == "desc" else sort
+            query_body["sort"].append({
+                field_name: {"order": order}
+            })
+
+        try:
+            response = await self.elastic.search(index="movies", body=query_body)
+            print(response)
+        except Exception as e:
+            logging.error(f"Failed to fetch films from Elasticsearch: {e}")
+            return []
+
+        films = []
+        for hit in response['hits']['hits']:
+            film_data = {
+                "id": hit["_id"],
+                "title": hit["_source"]["title"],
+                "imdb_rating": hit["_source"].get("imdb_rating")
+            }
+            try:
+                film = Films(**film_data)
+                films.append(film)
+            except ValidationError as e:
+                logging.error(f"Error validating film data: {e}")
+                continue
+
+        return films
+
 
 @lru_cache()
 def get_film_service(
-    redis: Redis = Depends(get_redis),
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+        redis: Redis = Depends(get_redis),
+        elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
     return FilmService(redis, elastic)
