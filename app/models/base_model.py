@@ -19,6 +19,7 @@ class BaseMixin(BaseModel):
         json_loads = orjson.loads
         json_dumps = orjson_dumps
 
+
 class BaseFilm(BaseMixin):
     """
     Базовая модель фильма
