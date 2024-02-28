@@ -22,7 +22,7 @@ services:
       - .env
 
   etl:
-    image: vadimiki/etl:latest
+    image: vadimiki/etl:2.0
     restart: always
     env_file:
       - .env
