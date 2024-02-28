@@ -114,8 +114,6 @@ async def film_details(
 async def list_films(
         sort: Optional[str] = '-imdb_rating',
         genre: Optional[str] = None,
-        page_size: int = 50,
-        page_number: int = 1,
         film_service: FilmService = Depends(get_film_service)) -> List[FilmListResponse]:
     """
     Получить список фильмов
@@ -127,8 +125,25 @@ async def list_films(
     :return:
     """
     films = await film_service.get_films(
-        sort=sort, genre=genre, page_size=page_size, page_number=page_number)
+        sort=sort, genre=genre)
     return [FilmListResponse(
         uuid=film.id,
         title=film.title,
         imdb_rating=film.imdb_rating) for film in films]
+
+
+@router.get('/search/', response_model=List[FilmListResponse])
+async def search_films(
+        query: str,
+        film_service: FilmService =
+        Depends(get_film_service)) -> List[FilmListResponse]:
+    """
+    Поиск фильмов
+    :param query:
+    :param film_service:
+    :return:
+    """
+    films = await film_service.search_films(query=query)
+    return [FilmListResponse(
+        uuid=film.id, title=film.title, imdb_rating=film.imdb_rating
+    ) for film in films]

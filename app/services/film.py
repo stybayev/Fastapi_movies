@@ -9,17 +9,26 @@ from redis.asyncio import Redis
 from app.db.elastic import get_elastic
 from app.db.redis import get_redis
 from app.models.film import Film, Films
+from app.utils.pagination import Pagination
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
 
 class FilmService:
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
+    def __init__(self, redis: Redis,
+                 elastic: AsyncElasticsearch,
+                 pagination: Pagination):
         self.redis = redis
         self.elastic = elastic
+        self.pagination = pagination
 
-    # get_by_id возвращает объект фильма. Он опционален, так как фильм может отсутствовать в базе
     async def get_by_id(self, film_id: str) -> Optional[Film]:
+        """
+        Получить фильм по id
+        :param film_id:
+        :return:
+        """
+
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         film = await self._film_from_cache(film_id)
         if not film:
@@ -142,12 +151,12 @@ class FilmService:
 
     async def get_films(self, genre: Optional[str] = None,
                         sort: Optional[str] = None,
-                        page_size: int = 10,
-                        page_number: int = 1) -> List[Films]:
+                        ) -> List[Films]:
         """
         Получить список фильмов с учетом жанра, сортировки, размера страницы и номера страницы.
         Возвращает список объектов Film.
         """
+        pagination_params = self.pagination.get_pagination_params()
         query_body = {
             "query": {
                 "bool": {
@@ -155,8 +164,7 @@ class FilmService:
                 }
             },
             "sort": [],
-            "from": (page_number - 1) * page_size,
-            "size": page_size
+            **pagination_params
         }
 
         # Фильтрация по жанру
@@ -168,17 +176,55 @@ class FilmService:
         # Сортировка
         if sort:
             order = "desc" if sort.startswith("-") else "asc"
-            field_name = "imdb_rating" if sort[1:] == "imdb_rating" or sort == "imdb_rating" else sort[
-                                                                                                  1:] if order == "desc" else sort
+            field_name = "imdb_rating" \
+                if sort[1:] == ("imdb_rating" or sort == "imdb_rating") \
+                else sort[1:] if order == "desc" else sort
             query_body["sort"].append({
                 field_name: {"order": order}
             })
 
         try:
             response = await self.elastic.search(index="movies", body=query_body)
-            print(response)
         except Exception as e:
             logging.error(f"Failed to fetch films from Elasticsearch: {e}")
+            return []
+
+        films = []
+        for hit in response['hits']['hits']:
+            film_data = {
+                "id": hit["_id"],
+                "title": hit["_source"]["title"],
+                "imdb_rating": hit["_source"].get("imdb_rating")
+            }
+            try:
+                film = Films(**film_data)
+                films.append(film)
+            except ValidationError as e:
+                logging.error(f"Error validating film data: {e}")
+                continue
+
+        return films
+
+    async def search_films(self, query: str,
+                           ) -> List[Films]:
+        """
+        Поиск фильмов по заданному запросу.
+        """
+        pagination_params = self.pagination.get_pagination_params()
+        search_body = {
+            "query": {
+                "multi_match": {
+                    "query": query,
+                    "fields": ["title^5", "description"]
+                }
+            },
+            **pagination_params
+        }
+
+        try:
+            response = await self.elastic.search(index="movies", body=search_body)
+        except Exception as e:
+            logging.error(f"Failed to search films in Elasticsearch: {e}")
             return []
 
         films = []
@@ -202,5 +248,6 @@ class FilmService:
 def get_film_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
+        pagination: Pagination = Depends()
 ) -> FilmService:
-    return FilmService(redis, elastic)
+    return FilmService(redis, elastic, pagination)
