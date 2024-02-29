@@ -6,7 +6,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
-from app.api.v1 import films, genres
+from app.api.v1 import films, genres, persons
 from app.core import config
 from app.core.logger import LOGGING
 from app.db import elastic, redis
@@ -35,6 +35,7 @@ async def shutdown():
 
 app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
 app.include_router(genres.router, prefix="/api/v1/genres", tags=["genres"])
+app.include_router(persons.router, prefix="/api/v1/persons", tags=["persons"])
 
 if __name__ == "__main__":
     uvicorn.run(
