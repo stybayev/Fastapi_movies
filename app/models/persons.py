@@ -10,7 +10,6 @@ class BasePersonModel(BaseMixin):
     Базовая модель персоны
     """
     full_name: str
-    films: List[str]
 
     class Config:
         json_loads = orjson.loads

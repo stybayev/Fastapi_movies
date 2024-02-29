@@ -53,11 +53,14 @@ class FilmService(BaseService):
         # Получаем данные о режиссерах, используя выделенную функцию
         # doc_source['director'] = [doc_source.get('director', '')] if doc_source.get('director', '') else []
         director_names = doc_source.get('director', [])
-        director = []
+
         if director_names:
-            directors_data = await self._get_directors_data(director_names)
-            director.append(directors_data)
-            doc_source['director'] = director
+            prepared = {
+                'uuid': director_names['id'],
+                'full_name': director_names['name']
+            }
+
+            doc_source['director'] = [prepared]
         else:
             doc_source['director'] = []
 
@@ -118,36 +121,6 @@ class FilmService(BaseService):
             except NotFoundError:
                 logging.error(f"Genre {genre_name} not found")
         return genres_data
-
-    async def _get_directors_data(self, director_full_name: str) -> dict:
-        """
-        Получить данные о режиссерах
-        :param director_full_names:
-        :return:
-        """
-
-        try:
-            # Поиск режиссера по полному имени
-            response = await self.elastic.search(
-                index="persons",
-                body={
-                    "query": {
-                        "match": {
-                            "full_name.raw": director_full_name
-                        }
-                    }
-                }
-            )
-            # Добавляем данные о режиссере в список
-            for hit in response['hits']['hits']:
-                director_data = {
-                    "uuid": hit["_id"],
-                    "full_name": hit["_source"]["full_name"]
-                }
-                return director_data
-
-        except NotFoundError:
-            logging.error(f"Director {director_full_name} not found")
 
     async def get_films(self, genre: Optional[str] = None,
                         sort: Optional[str] = None,
