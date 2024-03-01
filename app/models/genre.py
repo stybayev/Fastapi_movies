@@ -2,14 +2,9 @@ import orjson
 
 from pydantic import BaseModel
 from typing import Callable, Optional, Any
+from app.models.base_model import BaseMixin, orjson_dumps
 
-
-def orjson_dumps(v: Any, *, default: Callable[[Any], Any]) -> str:
-    return orjson.dumps(v, default=default).decode()
-
-
-class Genre(BaseModel):
-    id: str
+class Genre(BaseMixin):
     name: str
     description: Optional[str] = None
 

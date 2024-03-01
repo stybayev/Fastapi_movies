@@ -1,6 +1,5 @@
 import logging
 from functools import lru_cache
-from typing import Optional, List
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from pydantic import ValidationError
@@ -22,7 +21,7 @@ class FilmService(BaseService):
         self.index_name = "movies"
         self.pagination = pagination
 
-    async def get_by_id(self, film_id: str) -> Optional[Film]:
+    async def get_by_id(self, film_id: str) -> Film | None:
         """
         Получить фильм по id
         :param film_id:
@@ -42,7 +41,7 @@ class FilmService(BaseService):
 
         return film
 
-    async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
+    async def _get_film_from_elastic(self, film_id: str) -> Film | None:
         try:
             doc = await self.elastic.get(index="movies", id=film_id)
         except NotFoundError:
@@ -78,7 +77,7 @@ class FilmService(BaseService):
             logging.error(e)
             return None
 
-    async def _film_from_cache(self, film_id: str) -> Optional[Film]:
+    async def _film_from_cache(self, film_id: str) -> Film | None:
         # Пытаемся получить данные о фильме из кеша, используя команду get
         # https://redis.io/commands/get/
         data = await self.redis.get(film_id)
@@ -122,9 +121,9 @@ class FilmService(BaseService):
                 logging.error(f"Genre {genre_name} not found")
         return genres_data
 
-    async def get_films(self, genre: Optional[str] = None,
-                        sort: Optional[str] = None,
-                        ) -> List[Films]:
+    async def get_films(self, genre: str | None = None,
+                        sort: str | None = None,
+                        ) -> list[Films]:
         """
         Получить список фильмов с учетом жанра, сортировки, размера страницы и номера страницы.
         Возвращает список объектов Film.
@@ -179,7 +178,7 @@ class FilmService(BaseService):
         return films
 
     async def search_films(self, query: str,
-                           ) -> List[Films]:
+                           ) -> list[Films]:
         """
         Поиск фильмов по заданному запросу.
         """

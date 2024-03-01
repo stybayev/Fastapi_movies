@@ -5,7 +5,6 @@ from app.services.film import FilmService, get_film_service
 router = APIRouter()
 
 from pydantic import BaseModel
-from typing import List, Optional
 
 
 class BaseFilmModelResponse(BaseModel):
@@ -58,11 +57,11 @@ class FilmResponse(BaseFilmModelResponse):
     """
     Модель фильма ответа API
     """
-    description: Optional[str] = None
-    genre: List[GenreResponse]
-    directors: List[DirectorResponse]
-    actors: List[ActorResponse]
-    writers: List[WriterResponse]
+    description: str | None = None
+    genre: list[GenreResponse]
+    directors: list[DirectorResponse]
+    actors: list[ActorResponse]
+    writers: list[WriterResponse]
 
 
 class FilmListResponse(BaseFilmModelResponse):
@@ -110,11 +109,11 @@ async def film_details(
     )
 
 
-@router.get('/', response_model=List[FilmListResponse])
+@router.get('/', response_model=list[FilmListResponse])
 async def list_films(
-        sort: Optional[str] = '-imdb_rating',
-        genre: Optional[str] = None,
-        film_service: FilmService = Depends(get_film_service)) -> List[FilmListResponse]:
+        sort: str | None = '-imdb_rating',
+        genre: str | None = None,
+        film_service: FilmService = Depends(get_film_service)) -> list[FilmListResponse]:
     """
     Получить список фильмов
     :param sort:
@@ -132,11 +131,11 @@ async def list_films(
         imdb_rating=film.imdb_rating) for film in films]
 
 
-@router.get('/search/', response_model=List[FilmListResponse])
+@router.get('/search/', response_model=list[FilmListResponse])
 async def search_films(
         query: str,
         film_service: FilmService =
-        Depends(get_film_service)) -> List[FilmListResponse]:
+        Depends(get_film_service)) -> list[FilmListResponse]:
     """
     Поиск фильмов
     :param query:

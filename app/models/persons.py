@@ -1,5 +1,4 @@
 from pydantic import Field
-from typing import List
 import orjson
 
 from app.models.base_model import BaseMixin, orjson_dumps
