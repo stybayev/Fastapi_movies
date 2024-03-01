@@ -1,5 +1,3 @@
-from typing import Optional
-
 import orjson
 from pydantic import BaseModel
 
@@ -25,4 +23,4 @@ class BaseFilm(BaseMixin):
     Базовая модель фильма
     """
     title: str
-    imdb_rating: Optional[float] = None
+    imdb_rating: float | None = None

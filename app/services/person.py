@@ -1,6 +1,5 @@
 import logging
 from functools import lru_cache
-from typing import Optional, List
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from pydantic import ValidationError
@@ -23,7 +22,7 @@ class PersonsService(BaseService):
         self.index_name = "persons"
         self.pagination = pagination
 
-    async def _person_from_cache(self, person_id: str) -> Optional[BasePersonModel]:
+    async def _person_from_cache(self, person_id: str) -> BasePersonModel | None:
         data = await self.redis.get(person_id)
         if not data:
             return None
@@ -34,7 +33,7 @@ class PersonsService(BaseService):
     async def _put_person_to_cache(self, person: BasePersonModel):
         await self.redis.set(person.id, person.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
 
-    async def get_films(self, person_id: str) -> List[Films]:
+    async def get_films(self, person_id: str) -> list[Films]:
         pagination_params = self.pagination.get_pagination_params()
         query_body = {
             "query": {
@@ -97,7 +96,7 @@ class PersonsService(BaseService):
         return films
 
     async def search_person(self, query: str,
-                           ) -> List[BasePersonModel]:
+                           ) -> list[BasePersonModel]:
         pagination_params = self.pagination.get_pagination_params()
         search_body = {
             **pagination_params
@@ -131,7 +130,7 @@ class PersonsService(BaseService):
 
         return persons
     
-    async def get_persons(self) -> List[BasePersonModel]:
+    async def get_persons(self) -> list[BasePersonModel]:
         pagination_params = self.pagination.get_pagination_params()
         search_body = {**pagination_params}
 
