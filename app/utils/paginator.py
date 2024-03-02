@@ -1,2 +1,10 @@
-async def paginate(page_size: int = 10, page_number: int = 1) -> dict:
-    return {'size': page_size, 'from_': (page_number - 1) * page_size}
+from fastapi import Query
+
+
+async def paginate(
+    page_size: int = Query(10, ge=1, le=100, description="Pagination page size"),
+    page_number: int = Query(1, ge=1, description="Pagination page number")) -> dict:
+    """
+    Функция зависимости для извлечения параметров пагинации.
+    """
+    return {"page_size": page_size, "page_number": page_number}
