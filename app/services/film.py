@@ -4,22 +4,19 @@ from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from pydantic import ValidationError
 from redis.asyncio import Redis
-
 from app.db.elastic import get_elastic
 from app.db.redis import get_redis
 from app.models.film import Film, Films
-from app.utils.pagination import Pagination
 from app.services.base import BaseService
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
 
 class FilmService(BaseService):
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch, pagination: Pagination):
+    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
         super().__init__(redis, elastic)
         self.model = Film
         self.index_name = "movies"
-        self.pagination = pagination
 
     async def get_by_id(self, film_id: str) -> Film | None:
         """
@@ -123,12 +120,14 @@ class FilmService(BaseService):
 
     async def get_films(self, genre: str | None = None,
                         sort: str | None = None,
+                        page_size: int = 10,
+                        page_number: int = 1
                         ) -> list[Films]:
         """
         Получить список фильмов с учетом жанра, сортировки, размера страницы и номера страницы.
         Возвращает список объектов Film.
         """
-        pagination_params = self.pagination.get_pagination_params()
+        offset = (page_number - 1) * page_size
         query_body = {
             "query": {
                 "bool": {
@@ -136,7 +135,8 @@ class FilmService(BaseService):
                 }
             },
             "sort": [],
-            **pagination_params
+            "from": offset,  # Смещение для пагинации
+            "size": page_size  # Размер страницы
         }
 
         # Фильтрация по жанру
@@ -177,12 +177,14 @@ class FilmService(BaseService):
 
         return films
 
-    async def search_films(self, query: str,
-                           ) -> list[Films]:
+    async def search_films(
+            self, query: str,
+            page_size: int = 10,
+            page_number: int = 1) -> list[Films]:
         """
         Поиск фильмов по заданному запросу.
         """
-        pagination_params = self.pagination.get_pagination_params()
+        offset = (page_number - 1) * page_size
         search_body = {
             "query": {
                 "multi_match": {
@@ -190,7 +192,8 @@ class FilmService(BaseService):
                     "fields": ["title^5", "description"]
                 }
             },
-            **pagination_params
+            "from": offset,
+            "size": page_size
         }
 
         try:
@@ -220,6 +223,5 @@ class FilmService(BaseService):
 def get_film_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
-        pagination: Pagination = Depends()
 ) -> FilmService:
-    return FilmService(redis, elastic, pagination)
+    return FilmService(redis, elastic)

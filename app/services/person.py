@@ -1,6 +1,8 @@
 import logging
 from functools import lru_cache
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from typing import List
+
+from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
 from pydantic import ValidationError
 from redis.asyncio import Redis
@@ -9,18 +11,16 @@ from app.db.elastic import get_elastic
 from app.db.redis import get_redis
 from app.models.persons import BasePersonModel
 from app.models.film import Films
-from app.utils.pagination import Pagination
 from app.services.base import BaseService
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
 
 class PersonsService(BaseService):
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch, pagination: Pagination):
+    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
         super().__init__(redis, elastic)
         self.model = BasePersonModel
         self.index_name = "persons"
-        self.pagination = pagination
 
     async def _person_from_cache(self, person_id: str) -> BasePersonModel | None:
         data = await self.redis.get(person_id)
@@ -33,44 +33,47 @@ class PersonsService(BaseService):
     async def _put_person_to_cache(self, person: BasePersonModel):
         await self.redis.set(person.id, person.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
 
-    async def get_films(self, person_id: str) -> list[Films]:
-        pagination_params = self.pagination.get_pagination_params()
+    async def get_films(self, person_id: str,
+                        page_size: int = 10,
+                        page_number: int = 1) -> List[Films]:
+
+        offset = (page_number - 1) * page_size
         query_body = {
             "query": {
-            "bool": {   
-            "should": [
-                {
-                "nested": {
-                    "path": "actors",
-                    "query": {
-                    "bool": {
-                        "must": [
-                        { "match": { "actors.id": person_id } }
-                        ]
-                    }
-                    }
+                "bool": {
+                    "should": [
+                        {
+                            "nested": {
+                                "path": "actors",
+                                "query": {
+                                    "bool": {
+                                        "must": [
+                                            {"match": {"actors.id": person_id}}
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "nested": {
+                                "path": "writers",
+                                "query": {
+                                    "bool": {
+                                        "must": [
+                                            {"match": {"writers.id": person_id}}
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "match": {"director.id": person_id}
+                        }
+                    ]
                 }
-                },
-                {
-                "nested": {
-                    "path": "writers",
-                    "query": {
-                    "bool": {
-                        "must": [
-                        { "match": { "writers.id": person_id } }
-                        ]
-                    }
-                    }
-                }
-                },
-                {
-                    "match":{"director.id": "f281e96a-659d-402f-9b85-3fd79966f6e7"}
-                }
-
-            ]
-            }
-        },
-            **pagination_params
+            },
+            "from": offset,
+            "size": page_size
         }
 
         try:
@@ -96,22 +99,25 @@ class PersonsService(BaseService):
         return films
 
     async def search_person(self, query: str,
-                           ) -> list[BasePersonModel]:
-        pagination_params = self.pagination.get_pagination_params()
+                            page_size: int = 10,
+                            page_number: int = 1
+                            ) -> list[BasePersonModel]:
+        offset = (page_number - 1) * page_size
         search_body = {
-            **pagination_params
+            "from": offset,
+            "size": page_size,
+            "query": {
+                "match_all": {}
+            }
         }
 
         if query:
-            extra_condition = {
-            "query": {
+            search_body["query"] = {
                 "multi_match": {
                     "query": query,
                     "fields": ["full_name"]
                 }
-            },
             }
-            search_body.update(extra_condition)
 
         try:
             response = await self.elastic.search(index=self.index_name, body=search_body)
@@ -129,7 +135,7 @@ class PersonsService(BaseService):
                 continue
 
         return persons
-    
+
     async def get_persons(self) -> list[BasePersonModel]:
         pagination_params = self.pagination.get_pagination_params()
         search_body = {**pagination_params}
@@ -151,10 +157,10 @@ class PersonsService(BaseService):
 
         return persons
 
+
 @lru_cache()
 def get_person_service(
         redis: Redis = Depends(get_redis),
-        elastic: AsyncElasticsearch = Depends(get_elastic),
-        pagination: Pagination = Depends()
+        elastic: AsyncElasticsearch = Depends(get_elastic)
 ) -> PersonsService:
-    return PersonsService(redis, elastic, pagination)
+    return PersonsService(redis, elastic)

@@ -1,10 +1,11 @@
 from http import HTTPStatus
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from app.services.film import FilmService, get_film_service
 
 router = APIRouter()
 
 from pydantic import BaseModel
+from typing import List, Optional, Annotated
 
 
 class BaseFilmModelResponse(BaseModel):
@@ -57,11 +58,11 @@ class FilmResponse(BaseFilmModelResponse):
     """
     Модель фильма ответа API
     """
-    description: str | None = None
-    genre: list[GenreResponse]
-    directors: list[DirectorResponse]
-    actors: list[ActorResponse]
-    writers: list[WriterResponse]
+    description: Optional[str] = None
+    genre: List[GenreResponse]
+    directors: List[DirectorResponse]
+    actors: List[ActorResponse]
+    writers: List[WriterResponse]
 
 
 class FilmListResponse(BaseFilmModelResponse):
@@ -109,11 +110,13 @@ async def film_details(
     )
 
 
-@router.get('/', response_model=list[FilmListResponse])
+@router.get('/', response_model=List[FilmListResponse])
 async def list_films(
-        sort: str | None = '-imdb_rating',
-        genre: str | None = None,
-        film_service: FilmService = Depends(get_film_service)) -> list[FilmListResponse]:
+        sort: Optional[str] = '-imdb_rating',
+        genre: Optional[str] = None,
+        page_size: int = Query(10, ge=1, description='Pagination page size'),
+        page_number: int = Query(1, ge=1, description='Pagination page number'),
+        film_service: FilmService = Depends(get_film_service)) -> List[FilmListResponse]:
     """
     Получить список фильмов
     :param sort:
@@ -124,25 +127,31 @@ async def list_films(
     :return:
     """
     films = await film_service.get_films(
-        sort=sort, genre=genre)
+        sort=sort, genre=genre, page_size=page_size, page_number=page_number)
     return [FilmListResponse(
         uuid=film.id,
         title=film.title,
         imdb_rating=film.imdb_rating) for film in films]
 
 
-@router.get('/search/', response_model=list[FilmListResponse])
+@router.get('/search/', response_model=List[FilmListResponse])
 async def search_films(
         query: str,
+        page_size: int = Query(10, ge=1, description='Pagination page size'),
+        page_number: int = Query(1, ge=1, description='Pagination page number'),
         film_service: FilmService =
-        Depends(get_film_service)) -> list[FilmListResponse]:
+        Depends(get_film_service)) -> List[FilmListResponse]:
     """
     Поиск фильмов
+    :param page_size:
+    :param page_number:
     :param query:
     :param film_service:
     :return:
     """
-    films = await film_service.search_films(query=query)
+    films = await film_service.search_films(
+        query=query,page_size=page_size, page_number=page_number)
+
     return [FilmListResponse(
         uuid=film.id, title=film.title, imdb_rating=film.imdb_rating
     ) for film in films]
