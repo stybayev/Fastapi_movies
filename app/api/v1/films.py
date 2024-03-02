@@ -1,11 +1,11 @@
 from http import HTTPStatus
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from app.services.film import FilmService, get_film_service
 
 router = APIRouter()
 
 from pydantic import BaseModel
-from typing import List, Optional, Annotated
+from typing import List
 
 
 class BaseFilmModelResponse(BaseModel):
@@ -58,7 +58,7 @@ class FilmResponse(BaseFilmModelResponse):
     """
     Модель фильма ответа API
     """
-    description: Optional[str] = None
+    description: str | None = None
     genre: List[GenreResponse]
     directors: List[DirectorResponse]
     actors: List[ActorResponse]
@@ -75,7 +75,7 @@ class FilmListResponse(BaseFilmModelResponse):
 # Внедряем FilmService с помощью Depends(get_film_service)
 @router.get('/{film_id}', response_model=FilmResponse)
 async def film_details(
-        film_id: str,
+        film_id: str = Path(..., description='film id'),
         film_service: FilmService = Depends(get_film_service)) -> FilmResponse:
     """
     Получить информацию о фильме
@@ -114,8 +114,8 @@ async def film_details(
     response_model=List[FilmListResponse],
 )
 async def list_films(
-        sort: Optional[str] = '-imdb_rating',
-        genre: Optional[str] = None,
+        sort: str | None = '-imdb_rating',
+        genre: str | None = Query(None, description='Filter by genre'),
         page_size: int = Query(10, ge=1, description='Pagination page size'),
         page_number: int = Query(1, ge=1, description='Pagination page number'),
         film_service: FilmService = Depends(get_film_service)) -> List[FilmListResponse]:
@@ -137,7 +137,7 @@ async def list_films(
 
 @router.get('/search/', response_model=List[FilmListResponse])
 async def search_films(
-        query: str,
+        query: str = Query(..., description='Search query'),
         page_size: int = Query(10, ge=1, description='Pagination page size'),
         page_number: int = Query(1, ge=1, description='Pagination page number'),
         film_service: FilmService =
