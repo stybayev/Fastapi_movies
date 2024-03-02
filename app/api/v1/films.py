@@ -79,9 +79,8 @@ async def film_details(
         film_service: FilmService = Depends(get_film_service)) -> FilmResponse:
     """
     Получить информацию о фильме
-    :param film_id:
-    :param film_service:
-    :return:
+
+    - **film_id**: идентификатор фильма
     """
     film = await film_service.get_by_id(film_id)
     if not film:
@@ -110,7 +109,10 @@ async def film_details(
     )
 
 
-@router.get('/', response_model=List[FilmListResponse])
+@router.get(
+    '/',
+    response_model=List[FilmListResponse],
+)
 async def list_films(
         sort: Optional[str] = '-imdb_rating',
         genre: Optional[str] = None,
@@ -118,13 +120,12 @@ async def list_films(
         page_number: int = Query(1, ge=1, description='Pagination page number'),
         film_service: FilmService = Depends(get_film_service)) -> List[FilmListResponse]:
     """
-    Получить список фильмов
-    :param sort:
-    :param genre:
-    :param page_size:
-    :param page_number:
-    :param film_service:
-    :return:
+    Получить список фильмов"
+
+    - **sort**: сортировка по рейтингу (по убыванию)
+    - **genre**: фильтрация по жанру
+    - **page_size**: размер страницы
+    - **page_number**: номер страницы
     """
     films = await film_service.get_films(
         sort=sort, genre=genre, page_size=page_size, page_number=page_number)
@@ -142,15 +143,15 @@ async def search_films(
         film_service: FilmService =
         Depends(get_film_service)) -> List[FilmListResponse]:
     """
-    Поиск фильмов
-    :param page_size:
-    :param page_number:
-    :param query:
-    :param film_service:
-    :return:
+    Поиск фильмов по запросу
+
+    - **query**: запрос поиска
+    - **page_size**: размер страницы
+    - **page_number**: номер страницы
+
     """
     films = await film_service.search_films(
-        query=query,page_size=page_size, page_number=page_number)
+        query=query, page_size=page_size, page_number=page_number)
 
     return [FilmListResponse(
         uuid=film.id, title=film.title, imdb_rating=film.imdb_rating

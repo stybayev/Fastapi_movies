@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Path
 
 from app.db.elastic import get_elastic, AsyncElasticsearch
 from app.models.genre import Genre
@@ -7,8 +7,13 @@ router = APIRouter()
 
 
 @router.get("/{genre_id}", response_model=Genre)
-async def get_genre_by_id(genre_id: str,
+async def get_genre_by_id(genre_id: str = Path(..., description="genre's ID"),
                           es: AsyncElasticsearch = Depends(get_elastic)) -> Genre:
+    """
+    Получение жанра по id.
+
+    - **genre_id**: id жанра
+    """
     response = await es.get(index="genres", id=genre_id)
     return Genre(**response['_source'])
 
@@ -21,6 +26,9 @@ async def genre(es: AsyncElasticsearch = Depends(get_elastic),
                 ) -> list[Genre]:
     """
     Получение списка жанров с пагинацией.
+
+    - **page_size**: размер страницы
+    - **page_number**: номер страницы
     """
     offset = (page_number - 1) * page_size
 
