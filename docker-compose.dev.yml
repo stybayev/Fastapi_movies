@@ -8,14 +8,14 @@ volumes:
 services:
   app:
     container_name: app
-    build:
-      context: .
-      dockerfile: ./Dockerfile_production
+    build: .
     volumes:
       - .:/app
     restart: always
     expose:
       - ${UVICORN_PORT}
+    ports:
+      - ${UVICORN_PORT}:${UVICORN_PORT}
     depends_on:
       - db
       - elasticsearch
@@ -41,6 +41,8 @@ services:
       - "ES_JAVA_OPTS=-Xms200m -Xmx200m"
     expose:
       - 9200
+    ports:
+      - ${ELASTIC_PORT}:9200
     volumes:
       - esdata:/usr/share/elasticsearch/data
 
@@ -51,6 +53,8 @@ services:
     restart: always
     expose:
       - 5432
+    ports:
+      - ${POSTGRES_PORT}:5432
     env_file:
       - .env
     volumes:
@@ -62,6 +66,8 @@ services:
     container_name: redis
     expose:
       - 6379
+    ports:
+      - ${REDIS_PORT}:6379
     volumes:
       - redis_data:/var/lib/redis
 
@@ -71,6 +77,6 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/configs/:/etc/nginx/conf.d/:ro
     depends_on:
-      - app
+      - movies_app
     ports:
       - "80:80"
